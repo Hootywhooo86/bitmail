@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>bitmail — Mail, but chunkier.</title>
+<meta name="description" content="bitmail is the 128bit family's pixel email app: a chunky inbox, quests for inbox zero, and family mail that feels like a game. Coming soon.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0b16;
+    --panel:#141428;
+    --blue:#38bdf8;
+    --blue-deep:#0369a1;
+    --orange:#ff9f1c;
+    --red:#ff5d5d;
+    --ink:#f4f1ff;
+    --muted:#9a97b8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:'Inter',system-ui,sans-serif;overflow-x:hidden}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background-image:radial-gradient(rgba(56,189,248,.08) 1px, transparent 1px);background-size:22px 22px}
+  .wrap{max-width:960px;margin:0 auto;padding:0 20px;position:relative;z-index:1}
+  .pixel{font-family:'Press Start 2P',monospace}
+  nav{display:flex;justify-content:space-between;align-items:center;padding:22px 0}
+  .logo{display:flex;align-items:center;gap:12px;font-family:'Press Start 2P',monospace;font-size:15px}
+  .logo-mark{width:34px;height:34px;background:var(--blue);display:grid;place-items:center;font-size:18px;box-shadow:0 4px 0 var(--blue-deep), 4px 0 0 var(--blue-deep), -4px 0 0 var(--blue-deep), 0 -4px 0 var(--blue-deep);image-rendering:pixelated}
+  .badge{font-family:'Press Start 2P',monospace;font-size:9px;color:var(--bg);background:var(--orange);padding:8px 10px;letter-spacing:1px;box-shadow:0 4px 0 #a05e00}
+  header{text-align:center;padding:52px 0 30px}
+  .eyebrow{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--blue);letter-spacing:2px;margin-bottom:26px}
+  h1{font-family:'Press Start 2P',monospace;font-size:clamp(22px,5.5vw,44px);line-height:1.35;margin-bottom:24px;text-shadow:0 4px 0 #1a1a33, 4px 0 0 #1a1a33}
+  h1 .b{color:var(--blue)} h1 .o{color:var(--orange)}
+  .sub{color:var(--muted);font-size:18px;max-width:620px;margin:0 auto 20px;line-height:1.6}
+  .try{font-family:'Press Start 2P',monospace;font-size:9px;color:var(--blue);letter-spacing:1px;margin-bottom:26px}
+  /* ---------- mail app ---------- */
+  .mail{display:flex;background:var(--panel);border:3px solid #2a2a4a;box-shadow:8px 8px 0 #000;margin-bottom:36px;min-height:420px}
+  .folders{width:170px;flex-shrink:0;border-right:3px solid #2a2a4a;padding:16px}
+  .folders button{display:block;width:100%;text-align:left;background:none;border:none;color:var(--muted);font-family:'Press Start 2P',monospace;font-size:9px;padding:10px 6px;cursor:pointer}
+  .folders button.active{color:var(--ink);background:#1f1f3a}
+  .folders button span{color:var(--blue);float:right}
+  .compose-btn{font-family:'Press Start 2P',monospace;font-size:9px;width:100%;padding:12px 6px;background:var(--blue);color:#0b0b16;border:none;cursor:pointer;box-shadow:0 4px 0 var(--blue-deep);margin-bottom:14px}
+  .list{flex:1;min-width:0}
+  .search{padding:12px;border-bottom:3px solid #2a2a4a}
+  .search input{width:100%;padding:10px 12px;background:#0b0b16;border:3px solid #2a2a4a;color:var(--ink);font-size:14px}
+  .msg{display:flex;gap:12px;padding:14px;border-bottom:2px solid #2a2a4a;cursor:pointer}
+  .msg:hover{background:#1a1a33}
+  .msg.unread{background:#1a1a33}
+  .msg .avatar{width:38px;height:38px;flex-shrink:0;display:grid;place-items:center;font-size:18px;background:#1f1f3a}
+  .msg .meta{flex:1;min-width:0}
+  .msg .from{font-weight:800;font-size:14px}
+  .msg .subj{font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .msg .snip{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .msg .time{font-size:11px;color:var(--muted);flex-shrink:0}
+  .msg .dot{width:9px;height:9px;background:var(--blue);flex-shrink:0;margin-top:5px}
+  .reader{flex:1.2;padding:18px;border-left:3px solid #2a2a4a;min-width:0}
+  .reader h3{font-size:16px;margin-bottom:6px}
+  .reader .rmeta{font-size:13px;color:var(--muted);margin-bottom:14px}
+  .reader p{font-size:14px;line-height:1.7;color:var(--ink);margin-bottom:12px}
+  .reader .actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+  .reader .actions button{font-family:'Press Start 2P',monospace;font-size:9px;padding:10px 14px;background:#1f1f3a;color:var(--ink);border:none;cursor:pointer}
+  .reader .actions button.star{background:var(--orange);color:#0b0b16}
+  .questbar{background:#1f1f3a;padding:12px 16px;font-size:13px;border-top:3px solid #2a2a4a}
+  .questbar b{color:var(--blue)}
+  .questbar .bar{height:10px;background:#0b0b16;margin-top:8px}
+  .questbar .bar i{display:block;height:100%;background:var(--blue);width:0%;transition:width .3s}
+  /* ---------- compose modal ---------- */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;place-items:center;z-index:20}
+  .modal.open{display:grid}
+  .modal .box{background:var(--panel);border:3px solid #2a2a4a;padding:20px;width:min(480px,92vw);box-shadow:8px 8px 0 #000}
+  .modal h3{font-family:'Press Start 2P',monospace;font-size:11px;margin-bottom:14px;color:var(--blue)}
+  .modal input,.modal textarea{width:100%;padding:10px 12px;background:#0b0b16;border:3px solid #2a2a4a;color:var(--ink);font-size:14px;margin-bottom:10px}
+  .modal textarea{min-height:120px}
+  .modal .row{display:flex;gap:10px;justify-content:flex-end}
+  .modal .row button{font-family:'Press Start 2P',monospace;font-size:9px;padding:10px 16px;border:none;cursor:pointer;background:#1f1f3a;color:var(--ink)}
+  .modal .row button.send{background:var(--blue);color:#0b0b16}
+  /* ---------- features ---------- */
+  .features{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;padding:10px 0 36px}
+  .feat{background:var(--panel);border:3px solid #2a2a4a;padding:20px}
+  .feat h3{font-family:'Press Start 2P',monospace;font-size:11px;margin-bottom:10px;color:var(--blue)}
+  .feat p{color:var(--muted);font-size:14px;line-height:1.6}
+  .waitlist{background:var(--panel);border:3px solid #2a2a4a;padding:28px;text-align:center;margin-bottom:40px}
+  .waitlist h2{font-family:'Press Start 2P',monospace;font-size:14px;margin-bottom:16px}
+  .waitlist form{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .waitlist input{padding:12px 14px;background:#0b0b16;border:3px solid #2a2a4a;color:var(--ink);font-size:14px;min-width:240px}
+  .waitlist button{font-family:'Press Start 2P',monospace;font-size:10px;padding:12px 18px;background:var(--blue);color:#0b0b16;border:none;cursor:pointer;box-shadow:0 4px 0 var(--blue-deep)}
+  .waitlist .note{color:var(--muted);font-size:13px;margin-top:12px}
+  footer{text-align:center;color:var(--muted);font-size:13px;padding:20px 0 40px}
+  .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(80px);background:var(--blue);color:#0b0b16;font-family:'Press Start 2P',monospace;font-size:11px;padding:14px 20px;box-shadow:0 4px 0 var(--blue-deep);transition:transform .3s;z-index:30}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  @media (max-width:700px){ .mail{flex-direction:column} .folders{width:auto;border-right:none;border-bottom:3px solid #2a2a4a} .reader{border-left:none;border-top:3px solid #2a2a4a} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <div class="logo"><span class="logo-mark">✉️</span> bitmail</div>
+    <span class="badge">COMING SOON</span>
+  </nav>
+
+  <header>
+    <div class="eyebrow">PART OF THE 128BIT FAMILY</div>
+    <h1>Mail, but <span class="b">chunkier</span>.</h1>
+    <p class="sub">A pixel inbox that makes email feel less like a chore and more like a game: chunky threads, quests for inbox zero, and family mail in one place.</p>
+    <div class="try">▼ TRY THE MOCK BELOW — TAP A MESSAGE, STAR IT, SEND ONE ▼</div>
+  </header>
+
+  <section class="mail">
+    <div class="folders">
+      <button class="compose-btn" id="composeBtn">✏️ COMPOSE</button>
+      <button class="active" data-folder="inbox">📥 INBOX <span id="countInbox">3</span></button>
+      <button data-folder="starred">⭐ STARRED <span id="countStarred">0</span></button>
+      <button data-folder="sent">📤 SENT <span id="countSent">1</span></button>
+      <button data-folder="spam">🚫 SPAM <span>2</span></button>
+    </div>
+    <div class="list">
+      <div class="search"><input id="searchInput" placeholder="Search mail…"></div>
+      <div id="msgList"></div>
+      <div class="questbar">
+        <b>QUEST: INBOX ZERO</b> — Read or star 3 messages to earn +25 XP.
+        <div class="bar"><i id="questbar"></i></div>
+        <span id="questtext">0 / 3 cleared</span>
+      </div>
+    </div>
+    <div class="reader" id="reader">
+      <h3 id="rSubj">Pick a message</h3>
+      <div class="rmeta" id="rMeta">Your inbox is waiting.</div>
+      <div id="rBody"><p>Tap any message on the left to read it here. Star the ones that matter, archive the rest, and chase that inbox-zero quest.</p></div>
+      <div class="actions" id="rActions" style="display:none">
+        <button id="starBtn" class="star">⭐ STAR</button>
+        <button id="archiveBtn">📥 ARCHIVE</button>
+        <button id="replyBtn">↩️ REPLY</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="features">
+    <div class="feat"><h3>📥 CHUNKY INBOX</h3><p>Big readable threads, swipe-friendly actions, and zero clutter. Email that respects your thumbs.</p></div>
+    <div class="feat"><h3>🎮 INBOX ZERO QUESTS</h3><p>Clearing your inbox earns XP into 128bitlife. Streaks for consecutive zero days.</p></div>
+    <div class="feat"><h3>👨‍👩‍👧 FAMILY MAIL</h3><p>A shared family inbox layer on the 128bit feed — one place for the household's mail.</p></div>
+    <div class="feat"><h3>🔔 SMART TRIAGE</h3><p>Priority sorting that learns what you actually open — newsletters politely out of the way.</p></div>
+  </section>
+
+  <section class="waitlist">
+    <h2>JOIN THE WAITLIST</h2>
+    <form id="waitlistForm">
+      <input type="email" placeholder="you@email.com" required>
+      <button type="submit">SIGN ME UP</button>
+    </form>
+    <p class="note" id="waitlistNote">Be first to know when bitmail launches.</p>
+  </section>
+
+  <footer>bitmail — a 128bit family app · Built with pixels, not promises.</footer>
+</div>
+
+<div class="modal" id="modal">
+  <div class="box">
+    <h3>✏️ NEW MESSAGE</h3>
+    <input id="cTo" placeholder="To…">
+    <input id="cSubj" placeholder="Subject…">
+    <textarea id="cBody" placeholder="Write something good…"></textarea>
+    <div class="row">
+      <button id="cCancel">CANCEL</button>
+      <button class="send" id="cSend">SEND →</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+  const msgs = [
+    {id:1, from:'Carlos', avatar:'🧑‍💻', subj:'bitlauncher widget is ready to test', snip:'The home-screen widget build is up — calculator and mail widgets both...', time:'9:41 AM', folder:'inbox', unread:true, body:'<p>Hey! The home-screen widget build is up. Calculator and mail widgets are both in the test build — tap around and tell me what breaks.</p><p>— Carlos</p>'},
+    {id:2, from:'Family', avatar:'👨‍👩‍👧', subj:'Dinner photos + next weekend', snip:'Photos from Saturday are in the shared album, and…', time:'8:15 AM', folder:'inbox', unread:true, body:'<p>Photos from Saturday are in the shared album. Next weekend — same time, your place or ours?</p><p>— The Fam</p>'},
+    {id:3, from:'128bitlife', avatar:'🎮', subj:'Your streak is at 6 days!', snip:'One more quest today keeps the streak alive…', time:'Yesterday', folder:'inbox', unread:true, body:'<p>Your streak is at 6 days. One more quest today keeps it alive — inbox zero counts, if you are feeling brave.</p><p>— 128bitlife</p>'},
+    {id:4, from:'You', avatar:'🧑', subj:'Re: bitlauncher widget is ready to test', snip:'Testing now — the mail widget looks great…', time:'Yesterday', folder:'sent', unread:false, body:'<p>Testing now — the mail widget looks great. Ship it.</p>'},
+  ];
+  let folder = 'inbox', current = null, cleared = 0, starred = [];
+  const listEl = document.getElementById('msgList'), toastEl = document.getElementById('toast');
+  let toastTimer;
+  function toast(msg){ toastEl.textContent = msg; toastEl.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 2200); }
+  function renderList(){
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    const shown = msgs.filter(m => m.folder === folder && (m.subj.toLowerCase().includes(q) || m.from.toLowerCase().includes(q)));
+    listEl.innerHTML = shown.length ? '' : '<p style="padding:16px;color:var(--muted);font-size:14px">Nothing here. Enjoy the quiet.</p>';
+    shown.forEach(m => {
+      const d = document.createElement('div');
+      d.className = 'msg' + (m.unread ? ' unread' : '');
+      d.innerHTML = '<span class="avatar">' + m.avatar + '</span><div class="meta"><div class="from">' + m.from + '</div><div class="subj">' + m.subj + '</div><div class="snip">' + m.snip + '</div></div><span class="time">' + m.time + '</span>' + (m.unread ? '<span class="dot"></span>' : '');
+      d.addEventListener('click', () => openMsg(m));
+      listEl.appendChild(d);
+    });
+  }
+  function bumpQuest(){
+    cleared++;
+    document.getElementById('questbar').style.width = Math.min(cleared / 3 * 100, 100) + '%';
+    document.getElementById('questtext').textContent = Math.min(cleared, 3) + ' / 3 cleared';
+    if (cleared === 3) toast('QUEST COMPLETE! +25 XP — INBOX ZERO');
+  }
+  function openMsg(m){
+    current = m;
+    if (m.unread){ m.unread = false; bumpQuest(); }
+    document.getElementById('rSubj').textContent = m.subj;
+    document.getElementById('rMeta').textContent = m.from + ' · ' + m.time;
+    document.getElementById('rBody').innerHTML = m.body;
+    document.getElementById('rActions').style.display = 'flex';
+    document.getElementById('starBtn').textContent = starred.includes(m.id) ? '⭐ STARRED' : '⭐ STAR';
+    document.getElementById('countInbox').textContent = msgs.filter(x => x.folder === 'inbox' && x.unread).length;
+    renderList();
+  }
+  document.querySelectorAll('.folders button[data-folder]').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.folders button[data-folder]').forEach(x => x.classList.remove('active'));
+    b.classList.add('active'); folder = b.dataset.folder; renderList();
+  }));
+  document.getElementById('searchInput').addEventListener('input', renderList);
+  document.getElementById('starBtn').addEventListener('click', () => {
+    if (!current) return;
+    if (!starred.includes(current.id)){ starred.push(current.id); current.folder = 'starred'; toast('⭐ STARRED — +5 XP'); bumpQuest(); }
+    document.getElementById('countStarred').textContent = starred.length;
+    renderList();
+  });
+  document.getElementById('archiveBtn').addEventListener('click', () => {
+    if (!current) return;
+    current.folder = 'archived'; toast('📥 ARCHIVED'); bumpQuest();
+    document.getElementById('rSubj').textContent = 'Pick a message'; document.getElementById('rMeta').textContent = 'Your inbox is waiting.';
+    document.getElementById('rBody').innerHTML = '<p>Archived. One step closer to zero.</p>'; document.getElementById('rActions').style.display = 'none';
+    renderList();
+  });
+  document.getElementById('replyBtn').addEventListener('click', () => {
+    if (!current) return;
+    document.getElementById('cTo').value = current.from; document.getElementById('cSubj').value = 'Re: ' + current.subj;
+    document.getElementById('modal').classList.add('open');
+  });
+  document.getElementById('composeBtn').addEventListener('click', () => { document.getElementById('modal').classList.add('open'); });
+  document.getElementById('cCancel').addEventListener('click', () => document.getElementById('modal').classList.remove('open'));
+  document.getElementById('cSend').addEventListener('click', () => {
+    const to = document.getElementById('cTo').value || 'someone';
+    msgs.push({id: Date.now(), from:'You', avatar:'🧑', subj: document.getElementById('cSubj').value || '(no subject)', snip:'Sent to ' + to, time:'Just now', folder:'sent', unread:false, body:'<p>' + (document.getElementById('cBody').value || '…') + '</p>'});
+    document.getElementById('countSent').textContent = msgs.filter(x => x.folder === 'sent').length;
+    document.getElementById('modal').classList.remove('open'); toast('✉️ SENT — +10 XP');
+    document.getElementById('cTo').value = ''; document.getElementById('cSubj').value = ''; document.getElementById('cBody').value = '';
+  });
+  document.getElementById('waitlistForm').addEventListener('submit', e => { e.preventDefault(); document.getElementById('waitlistNote').textContent = 'You are on the list. +10 XP for joining early.'; toast('+10 XP — WAITLIST JOINED'); e.target.reset(); });
+  renderList();
+</script>
+</body>
+</html>
