@@ -59,7 +59,7 @@ Scopes used: `gmail.modify` (read, label, archive, trash) and `gmail.send`. Beca
 
 ## Android app
 
-`android/` is a [Trusted Web Activity](https://developer.chrome.com/docs/android/trusted-web-activity): the APK opens the live web app (https://hootywhooo86.github.io/bitmail/app/) in Chrome, full-screen with its own icon. It's built this way because Google blocks Gmail sign-in inside an app's built-in web view; inside Chrome, sign-in and everything else work as on the web, and updates to the site reach the app instantly. GitHub Actions builds the APK on every push (`.github/workflows/android.yml`); pushes to `main` publish it at https://github.com/Hootywhooo86/bitmail/releases/tag/android-latest.
+`android/` is a [Trusted Web Activity](https://developer.chrome.com/docs/android/trusted-web-activity): the APK opens the live web app (https://hootywhooo86.github.io/bitmail/app/) in Chrome, full-screen with its own icon. It's built this way because Google blocks Gmail sign-in inside an app's built-in web view; inside Chrome, sign-in and everything else work as on the web, and updates to the site reach the app instantly. GitHub Actions builds the APK on every push (`.github/workflows/android.yml`); pushes to `main` publish it at https://github.com/Hootywhooo86/bitmail/releases/tag/android-latest (direct download: https://github.com/Hootywhooo86/bitmail/releases/download/android-latest/bitmail.apk).
 
 **Hide Chrome's address bar (optional, one-time):** Android shows a small URL bar until the site vouches for the app. To remove it, publish this file at `https://hootywhooo86.github.io/.well-known/assetlinks.json`. That's the root of the `Hootywhooo86.github.io` repository, which needs to exist with GitHub Pages on:
 
