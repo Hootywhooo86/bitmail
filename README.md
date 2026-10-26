@@ -57,6 +57,27 @@ Google requires an OAuth Client ID for any app that reads Gmail:
 
 Scopes used: `gmail.modify` (read, label, archive, trash) and `gmail.send`. Because these are restricted scopes, publishing for the general public needs Google's verification. Testing mode covers you and up to 100 test users.
 
+## Android app
+
+`android/` is a [Trusted Web Activity](https://developer.chrome.com/docs/android/trusted-web-activity): the APK opens the live web app (https://hootywhooo86.github.io/bitmail/app/) in Chrome, full-screen with its own icon. It's built this way because Google blocks Gmail sign-in inside an app's built-in web view; inside Chrome, sign-in and everything else work as on the web, and updates to the site reach the app instantly. GitHub Actions builds the APK on every push (`.github/workflows/android.yml`); pushes to `main` publish it at https://github.com/Hootywhooo86/bitmail/releases/tag/android-latest.
+
+**Hide Chrome's address bar (optional, one-time):** Android shows a small URL bar until the site vouches for the app. To remove it, publish this file at `https://hootywhooo86.github.io/.well-known/assetlinks.json`. That's the root of the `Hootywhooo86.github.io` repository, which needs to exist with GitHub Pages on:
+
+```json
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.hootywhooo86.bitmail",
+    "sha256_cert_fingerprints": ["5C:78:82:D1:91:86:06:3F:CE:43:68:52:EF:87:75:F7:97:68:B7:FD:17:41:26:B5:4F:C1:8E:F4:A0:D3:6E:B4"]
+  }
+}]
+```
+
+- Build it yourself: `cd android && ./gradlew assembleDebug` (JDK 21 + Android SDK). `tools/make_icons.py` regenerates the pixel icons.
+- Needs Android 7.0+ and an internet connection (sign-in and mail are online anyway).
+- Signed with `android/app/sideload.keystore`, a key committed to the repo for sideloading; the fingerprint above belongs to it. A Play Store release needs a private key kept out of the repo (and its fingerprint added to the file).
+
 ## Status
 
 - Landing page: live, links to the app.

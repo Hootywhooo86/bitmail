@@ -1,0 +1,49 @@
+plugins {
+    id 'com.android.application'
+}
+
+// bitmail for Android is a Trusted Web Activity: it opens the live web app in Chrome full-screen,
+// which is what lets Google sign-in work (Google blocks Gmail sign-in inside plain web views).
+def appUrl = 'https://hootywhooo86.github.io/bitmail/app/'
+
+android {
+    namespace 'com.hootywhooo86.bitmail'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'com.hootywhooo86.bitmail'
+        minSdk 24
+        targetSdk 36
+        // CI passes its run number so every APK can install over the previous one.
+        versionCode((System.getenv('GITHUB_RUN_NUMBER') ?: '0').toInteger() + 1)
+        versionName '2.0.' + (System.getenv('GITHUB_RUN_NUMBER') ?: 'dev')
+        manifestPlaceholders = [appUrl: appUrl, hostName: 'hootywhooo86.github.io']
+    }
+
+    signingConfigs {
+        // A fixed key for sideloaded builds, so updates install over each other.
+        // Before publishing to the Play Store, sign with a private key kept out of the repo.
+        sideload {
+            storeFile file('sideload.keystore')
+            storePassword 'bitmail'
+            keyAlias 'bitmail'
+            keyPassword 'bitmail'
+        }
+    }
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.sideload
+        }
+        release {
+            minifyEnabled false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.7.4'
+}
