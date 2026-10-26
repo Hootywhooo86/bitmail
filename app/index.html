@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b0b16">
+<title>bitmail</title>
+<meta name="description" content="bitmail: read and send your Gmail in a chunky 128bit pixel inbox.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root{
+    --bg:#0b0b16;
+    --panel:#141428;
+    --line:#2a2a4a;
+    --key:#1f1f3a;
+    --blue:#38bdf8;
+    --blue-deep:#0369a1;
+    --orange:#ff9f1c;
+    --green:#4ade80;
+    --red:#ff5d5d;
+    --ink:#f4f1ff;
+    --muted:#9a97b8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--ink);font-family:'Inter',system-ui,sans-serif;overflow:hidden}
+  button{font-family:inherit;color:inherit;cursor:pointer}
+  .px{font-family:'Press Start 2P',monospace}
+  .shell{display:grid;grid-template-columns:230px 380px 1fr;grid-template-rows:auto 1fr;height:100vh;height:100dvh;max-width:1480px;margin:0 auto;border-left:3px solid var(--line);border-right:3px solid var(--line)}
+  /* top bar */
+  .top{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:3px solid var(--line);background:var(--panel)}
+  .burger{display:none;background:var(--key);border:none;width:38px;height:38px;font-size:18px;box-shadow:0 3px 0 #000}
+  .logo{display:flex;align-items:center;gap:10px;font-family:'Press Start 2P',monospace;font-size:12px;white-space:nowrap}
+  .logo i{width:28px;height:28px;background:var(--blue);display:grid;place-items:center;font-style:normal;font-size:14px;box-shadow:0 3px 0 var(--blue-deep);color:var(--bg)}
+  .search{flex:1;display:flex;max-width:620px;margin:0 auto}
+  .search input{flex:1;background:var(--bg);border:3px solid var(--line);color:var(--ink);padding:9px 12px;font-size:14px;min-width:0;border-radius:0}
+  .search input:focus{outline:none;border-color:var(--blue)}
+  .me{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);white-space:nowrap}
+  .me .av{width:32px;height:32px;background:var(--orange);color:var(--bg);display:grid;place-items:center;font-family:'Press Start 2P',monospace;font-size:11px}
+  .pxbtn{font-family:'Press Start 2P',monospace;font-size:9px;padding:10px 12px;background:var(--key);border:none;box-shadow:0 4px 0 #000;white-space:nowrap}
+  .pxbtn:active{transform:translateY(3px);box-shadow:0 1px 0 #000}
+  .pxbtn.blue{background:var(--blue);color:var(--bg);box-shadow:0 4px 0 var(--blue-deep)}
+  .pxbtn.red{color:var(--red)}
+  .pxbtn:disabled{opacity:.4;cursor:default}
+  /* sidebar */
+  .side{border-right:3px solid var(--line);padding:14px 10px;overflow-y:auto;background:var(--bg)}
+  .compose{width:100%;margin-bottom:16px;padding:14px}
+  .side a{display:flex;align-items:center;justify-content:space-between;padding:10px 10px;font-size:14px;color:var(--ink);text-decoration:none;margin-bottom:2px;border-left:4px solid transparent}
+  .side a:hover{background:var(--panel)}
+  .side a.on{background:var(--panel);border-left-color:var(--blue);color:var(--blue);font-weight:600}
+  .side a b{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--orange)}
+  .side h4{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--muted);margin:18px 10px 8px}
+  .quest{margin-top:18px;background:var(--panel);border:3px solid var(--line);padding:12px;font-size:12px;line-height:1.6;color:var(--muted)}
+  .quest b{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--orange);display:block;margin-bottom:6px}
+  .quest .bar{height:10px;background:var(--bg);margin-top:8px}
+  .quest .bar i{display:block;height:100%;background:var(--green);transition:width .3s}
+  /* list */
+  .list{border-right:3px solid var(--line);display:flex;flex-direction:column;min-height:0}
+  .cats{display:flex;border-bottom:3px solid var(--line)}
+  .cats button{flex:1;background:none;border:none;font-family:'Press Start 2P',monospace;font-size:8px;padding:12px 4px;color:var(--muted);border-bottom:4px solid transparent;margin-bottom:-3px}
+  .cats button.on{color:var(--blue);border-bottom-color:var(--blue)}
+  .rows{flex:1;overflow-y:auto}
+  .row{display:grid;grid-template-columns:auto 1fr auto;gap:4px 10px;padding:12px 14px;border-bottom:2px solid var(--line);cursor:pointer;position:relative}
+  .row:hover{background:var(--panel)}
+  .row.sel{background:color-mix(in srgb,var(--blue) 14%,var(--bg))}
+  .row.unread .from,.row.unread .subj{color:var(--ink);font-weight:800}
+  .row.unread::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--blue)}
+  .row .av{grid-row:span 3;width:34px;height:34px;display:grid;place-items:center;font-family:'Press Start 2P',monospace;font-size:11px;color:var(--bg)}
+  .row .from{font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .date{font-size:11px;color:var(--muted);white-space:nowrap}
+  .row .subj{grid-column:2/4;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .snip{grid-column:2/3;font-size:12px;color:color-mix(in srgb,var(--muted) 75%,var(--bg));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .st{grid-column:3;justify-self:end;background:none;border:none;font-size:16px;line-height:1;color:var(--muted);padding:0 2px}
+  .row .st.on{color:var(--orange)}
+  .row .cnt{font-size:11px;color:var(--muted);margin-left:4px}
+  .more{padding:14px;text-align:center}
+  .empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:14px;line-height:1.7}
+  .empty .big{font-family:'Press Start 2P',monospace;font-size:12px;color:var(--green);display:block;margin-bottom:12px;line-height:1.6}
+  /* reader */
+  .reader{overflow-y:auto;min-height:0;display:flex;flex-direction:column}
+  .rbar{display:flex;gap:8px;padding:10px 14px;border-bottom:3px solid var(--line);flex-wrap:wrap;position:sticky;top:0;background:var(--bg);z-index:2}
+  .back{display:none}
+  .rsubj{font-size:20px;font-weight:800;padding:18px 18px 6px;line-height:1.35}
+  .rlabels{padding:0 18px 10px;display:flex;gap:6px;flex-wrap:wrap}
+  .rlabels span{font-family:'Press Start 2P',monospace;font-size:7px;padding:5px 6px;background:var(--key);color:var(--blue)}
+  .msg{margin:0 14px 14px;border:3px solid var(--line);background:var(--panel)}
+  .mhead{display:flex;gap:10px;padding:12px;align-items:center;cursor:pointer}
+  .mhead .av{width:34px;height:34px;display:grid;place-items:center;font-family:'Press Start 2P',monospace;font-size:11px;color:var(--bg);flex:0 0 auto}
+  .mhead .who{flex:1;min-width:0;font-size:13px}
+  .mhead .who b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mhead .who span{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+  .mhead .when{font-size:11px;color:var(--muted);white-space:nowrap}
+  .mbody{border-top:2px solid var(--line)}
+  .mbody iframe{width:100%;border:0;display:block;min-height:120px;background:#fff}
+  .mbody pre{white-space:pre-wrap;word-wrap:break-word;font-family:'Inter',sans-serif;font-size:14px;line-height:1.6;color:var(--ink);padding:14px}
+  .mbody pre a{color:var(--blue)}
+  .msg.collapsed .mbody{display:none}
+  .msg .snipc{display:none;padding:0 12px 12px 56px;color:var(--muted);font-size:12px}
+  .msg.collapsed .snipc{display:block}
+  .att{display:flex;flex-wrap:wrap;gap:8px;padding:10px 12px;background:var(--panel);border-top:2px solid var(--line)}
+  .att a{font-size:12px;color:var(--blue);background:var(--key);padding:6px 8px;text-decoration:none}
+  .replybox{margin:0 14px 20px;display:flex;gap:8px;flex-wrap:wrap}
+  .placeholder{flex:1;display:grid;place-items:center;text-align:center;color:var(--muted);padding:30px;line-height:1.8;font-size:14px}
+  .placeholder .px{font-size:11px;color:var(--blue);display:block;margin-bottom:10px}
+  /* compose */
+  .sheet{position:fixed;right:20px;bottom:0;width:min(520px,100vw);background:var(--panel);border:3px solid var(--line);border-bottom:none;box-shadow:8px 0 0 #000;z-index:20;display:none;flex-direction:column;max-height:90dvh}
+  .sheet.open{display:flex}
+  .sheet header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--key);font-family:'Press Start 2P',monospace;font-size:9px}
+  .sheet header button{background:none;border:none;font-size:18px}
+  .sheet input,.sheet textarea{background:var(--bg);border:none;border-bottom:2px solid var(--line);color:var(--ink);padding:11px 12px;font-size:14px;font-family:'Inter',sans-serif;width:100%;border-radius:0}
+  .sheet textarea{flex:1;min-height:220px;resize:none;border-bottom:none}
+  .sheet input:focus,.sheet textarea:focus{outline:none;background:var(--key)}
+  .sheet footer{display:flex;gap:8px;padding:10px 12px;justify-content:space-between;align-items:center}
+  /* modal */
+  .modal{position:fixed;inset:0;background:rgba(5,5,12,.85);display:none;place-items:center;z-index:30;padding:16px}
+  .modal.open{display:grid}
+  .box{background:var(--panel);border:3px solid var(--line);box-shadow:8px 8px 0 #000;max-width:540px;width:100%;padding:22px;max-height:90dvh;overflow-y:auto}
+  .box h2{font-family:'Press Start 2P',monospace;font-size:13px;line-height:1.6;margin-bottom:14px;color:var(--blue);text-align:center}
+  .box p,.box li{font-size:14px;line-height:1.7;color:var(--muted);margin-bottom:10px}
+  .box ol{padding-left:20px;margin-bottom:12px}
+  .box code{background:var(--bg);padding:2px 5px;color:var(--orange);font-size:12px;word-break:break-all}
+  .box input{width:100%;background:var(--bg);border:3px solid var(--line);color:var(--ink);padding:10px;font-size:14px;margin:6px 0 14px;border-radius:0}
+  .box .btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(140px);background:var(--blue);color:var(--bg);font-family:'Press Start 2P',monospace;font-size:10px;padding:12px 16px;box-shadow:0 4px 0 var(--blue-deep);transition:transform .25s;z-index:40;display:flex;gap:14px;align-items:center;max-width:92vw}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  .toast button{background:var(--bg);color:var(--blue);border:none;font-family:'Press Start 2P',monospace;font-size:9px;padding:7px 8px}
+  .loading{padding:30px;text-align:center;font-family:'Press Start 2P',monospace;font-size:9px;color:var(--blue)}
+  .loading::after{content:"";animation:dots 1.2s steps(4) infinite}
+  @keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+  .scrim{display:none}
+  .shell>*{min-width:0}
+  .acct{width:100%;margin-top:14px;display:none}
+  /* responsive */
+  @media (max-width:1050px){
+    .shell{grid-template-columns:230px 1fr}
+    .reader{display:none}
+    .shell.reading .list{display:none}
+    .shell.reading .reader{display:flex}
+    .back{display:inline-block}
+  }
+  @media (max-width:720px){
+    .shell{grid-template-columns:1fr;border:0}
+    .burger{display:block}
+    .logo span{display:none}
+    .me .name,.me .pxbtn{display:none}
+    .acct{display:block}
+    .side{position:fixed;left:0;top:0;bottom:0;width:260px;z-index:15;transform:translateX(-100%);transition:transform .2s;border-right:3px solid var(--line)}
+    .side.open{transform:none}
+    .scrim.open{display:block;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:14}
+    .sheet{right:0;box-shadow:none}
+    .fab{display:grid !important}
+  }
+  .fab{display:none;position:fixed;right:18px;bottom:22px;width:58px;height:58px;place-items:center;font-size:22px;background:var(--blue);color:var(--bg);border:none;box-shadow:0 5px 0 var(--blue-deep);z-index:12}
+</style>
+<script src="theme.js" data-app="mail" data-accent="blue" data-second="orange" data-third="green" data-mount=".top"></script>
+</head>
+<body>
+<div class="shell" id="shell">
+  <div class="top">
+    <button class="burger" id="burger" aria-label="Menu">☰</button>
+    <div class="logo"><i>✉</i><span>bitmail</span></div>
+    <form class="search" id="searchForm"><input id="q" type="search" placeholder="Search mail (Gmail search works: from:mom has:attachment)" aria-label="Search mail"></form>
+    <div class="me" id="me"></div>
+  </div>
+
+  <aside class="side" id="side">
+    <button class="pxbtn blue compose" id="composeBtn">✎ COMPOSE</button>
+    <nav id="folders"></nav>
+    <h4>LABELS</h4>
+    <nav id="labels"></nav>
+    <div class="quest" id="quest"></div>
+    <button class="pxbtn acct" id="acctBtn"></button>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <section class="list">
+    <div class="cats" id="cats">
+      <button data-c="primary" class="on">PRIMARY</button>
+      <button data-c="social">SOCIAL</button>
+      <button data-c="promotions">PROMOS</button>
+      <button data-c="updates">UPDATES</button>
+    </div>
+    <div class="rows" id="rows"></div>
+  </section>
+
+  <section class="reader" id="reader">
+    <div class="placeholder"><div><span class="px">NO MESSAGE SELECTED</span>Pick a thread from the list to read it here.</div></div>
+  </section>
+</div>
+<button class="fab" id="fab" aria-label="Compose">✎</button>
+
+<div class="sheet" id="sheet">
+  <header><span id="sheetTitle">NEW MESSAGE</span><button id="sheetClose" aria-label="Close">✕</button></header>
+  <input id="cTo" placeholder="To" autocomplete="email">
+  <input id="cCc" placeholder="Cc (optional)">
+  <input id="cSubj" placeholder="Subject">
+  <textarea id="cBody" placeholder="Say something chunky…"></textarea>
+  <footer><button class="pxbtn blue" id="sendBtn">SEND ▶</button><button class="pxbtn red" id="discardBtn">DISCARD</button></footer>
+</div>
+
+<div class="modal" id="setup">
+  <div class="box">
+    <h2>CONNECT YOUR GMAIL</h2>
+    <p>bitmail talks straight to Google from your browser. Your mail never goes to a 128bit server. To sign in, it needs a Google OAuth <b>Client ID</b>, a one-time setup:</p>
+    <ol>
+      <li>Open <code>console.cloud.google.com</code> and create a project.</li>
+      <li>Enable the <b>Gmail API</b> (APIs &amp; Services → Library).</li>
+      <li>Set up the OAuth consent screen (External; add yourself as a test user).</li>
+      <li>Credentials → Create credentials → OAuth client ID → <b>Web application</b>.</li>
+      <li>Add this page's origin to <b>Authorized JavaScript origins</b>: <code id="originHint"></code></li>
+      <li>Paste the Client ID below.</li>
+    </ol>
+    <input id="clientId" placeholder="1234-abc.apps.googleusercontent.com" autocomplete="off" spellcheck="false">
+    <div class="btns">
+      <button class="pxbtn blue" id="saveClient">SAVE &amp; SIGN IN</button>
+      <button class="pxbtn" id="tryDemo">TRY DEMO INBOX</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastMsg"></span><button id="toastUndo" hidden>UNDO</button></div>
+
+<script>
+/* ================= Config ================= */
+// Set a default Client ID here to skip the setup screen for everyone who opens this page.
+const DEFAULT_CLIENT_ID = '';
+const SCOPES = 'https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send';
+const API = 'https://gmail.googleapis.com/gmail/v1/users/me/';
+
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d){ try { const v = localStorage.getItem('bitmail.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v){ try { localStorage.setItem('bitmail.' + k, JSON.stringify(v)); } catch {} },
+  del(k){ try { localStorage.removeItem('bitmail.' + k); } catch {} }
+};
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+let toastTimer, undoFn = null;
+function toast(msg, undo){
+  $('toastMsg').textContent = msg; undoFn = undo || null; $('toastUndo').hidden = !undo;
+  $('toast').classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').classList.remove('show'), undo ? 5000 : 2400);
+}
+$('toastUndo').onclick = () => { if (undoFn) undoFn(); undoFn = null; $('toast').classList.remove('show'); };
+const PALETTE = ['#38bdf8','#ff9f1c','#4ade80','#ff5d8f','#a78bfa','#facc15','#2dd4bf','#fb7185'];
+function colorFor(s){ let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return PALETTE[h % PALETTE.length]; }
+function nameOf(from){ const m = String(from).match(/^\s*"?([^"<]*?)"?\s*<(.+)>/); return m ? (m[1].trim() || m[2]) : String(from).trim(); }
+function addrOf(from){ const m = String(from).match(/<(.+)>/); return m ? m[1] : String(from).trim(); }
+function initial(s){ return (nameOf(s).replace(/[^A-Za-z0-9]/g, '')[0] || '?').toUpperCase(); }
+function when(ms, long){
+  const d = new Date(+ms), now = new Date();
+  if (long) return d.toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  if (d.getFullYear() === now.getFullYear()) return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  return d.toLocaleDateString([], { year: '2-digit', month: 'numeric', day: 'numeric' });
+}
+function decodeEntities(s){ const t = document.createElement('textarea'); t.innerHTML = s; return t.value; }
+
+/* ================= Backends ================= */
+// Both backends expose the same small surface so the UI never cares which is live.
+const Gmail = {
+  token: null, expires: 0, tokenClient: null,
+  ensureClient(){
+    const id = store.get('clientId', DEFAULT_CLIENT_ID);
+    if (!id || !window.google?.accounts?.oauth2) return false;
+    if (!this.tokenClient) this.tokenClient = google.accounts.oauth2.initTokenClient({ client_id: id, scope: SCOPES, callback: () => {} });
+    return true;
+  },
+  signIn(prompt){
+    return new Promise((resolve, reject) => {
+      if (!this.ensureClient()) return reject(new Error('Google sign-in not ready'));
+      this.tokenClient.callback = r => {
+        if (r.error) return reject(new Error(r.error_description || r.error));
+        this.token = r.access_token; this.expires = Date.now() + (r.expires_in - 60) * 1000;
+        try { sessionStorage.setItem('bitmail.tok', JSON.stringify([this.token, this.expires])); } catch {}
+        store.set('signedIn', true); resolve();
+      };
+      this.tokenClient.error_callback = e => reject(new Error(e.message || e.type || 'Sign-in closed'));
+      this.tokenClient.requestAccessToken({ prompt });
+    });
+  },
+  restore(){ try { const [t, e] = JSON.parse(sessionStorage.getItem('bitmail.tok') || '[]'); if (t && e > Date.now()){ this.token = t; this.expires = e; return true; } } catch {} return false; },
+  async req(path, opts = {}){
+    if (!this.token || Date.now() > this.expires) await this.signIn('');
+    const r = await fetch(API + path, { ...opts, headers: { Authorization: 'Bearer ' + this.token, 'Content-Type': 'application/json', ...(opts.headers || {}) } });
+    if (r.status === 401){ this.token = null; await this.signIn(''); return this.req(path, opts); }
+    if (!r.ok){ let m = r.statusText; try { m = (await r.json()).error.message; } catch {} throw new Error(m); }
+    return r.status === 204 ? {} : r.json();
+  },
+  async profile(){ return this.req('profile'); },
+  async labels(){
+    const { labels = [] } = await this.req('labels');
+    const ids = ['INBOX', 'SPAM', 'DRAFT'];
+    const counts = await Promise.all(ids.map(id => this.req('labels/' + id).catch(() => ({}))));
+    const unread = {}; ids.forEach((id, i) => unread[id] = id === 'DRAFT' ? counts[i].threadsTotal : counts[i].threadsUnread);
+    return { user: labels.filter(l => l.type === 'user').sort((a, b) => a.name.localeCompare(b.name)), unread };
+  },
+  async list({ label, q, pageToken }){
+    const p = new URLSearchParams({ maxResults: 25 });
+    if (label) p.append('labelIds', label);
+    if (q) p.set('q', q);
+    if (pageToken) p.set('pageToken', pageToken);
+    const r = await this.req('threads?' + p);
+    const threads = await Promise.all((r.threads || []).map(t => this.req(`threads/${t.id}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Date`).then(normThread).catch(() => null)));
+    return { threads: threads.filter(Boolean), next: r.nextPageToken || null };
+  },
+  async thread(id){ const t = await this.req(`threads/${id}?format=full`); return normThread(t, true); },
+  async modify(id, add = [], remove = []){ return this.req(`threads/${id}/modify`, { method: 'POST', body: JSON.stringify({ addLabelIds: add, removeLabelIds: remove }) }); },
+  async trash(id){ return this.req(`threads/${id}/trash`, { method: 'POST' }); },
+  async untrash(id){ return this.req(`threads/${id}/untrash`, { method: 'POST' }); },
+  async send({ to, cc, subject, body, threadId, inReplyTo, references }){
+    const head = [`To: ${to}`, cc ? `Cc: ${cc}` : null, `Subject: ${mimeWord(subject)}`, 'MIME-Version: 1.0', 'Content-Type: text/plain; charset="UTF-8"', 'Content-Transfer-Encoding: base64',
+      inReplyTo ? `In-Reply-To: ${inReplyTo}` : null, references ? `References: ${references}` : null].filter(Boolean).join('\r\n');
+    const raw = b64url(head + '\r\n\r\n' + b64(body).replace(/.{76}/g, '$&\r\n'));
+    return this.req('messages/send', { method: 'POST', body: JSON.stringify(threadId ? { raw, threadId } : { raw }) });
+  },
+  signOut(){
+    if (this.token && window.google?.accounts?.oauth2) google.accounts.oauth2.revoke(this.token, () => {});
+    this.token = null; try { sessionStorage.removeItem('bitmail.tok'); } catch {} store.del('signedIn');
+  }
+};
+function b64(str){ const bytes = new TextEncoder().encode(str); let bin = ''; bytes.forEach(b => bin += String.fromCharCode(b)); return btoa(bin); }
+function b64url(str){ return b64(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function unb64url(s){ const bin = atob(s.replace(/-/g, '+').replace(/_/g, '/')); const bytes = Uint8Array.from(bin, c => c.charCodeAt(0)); return new TextDecoder().decode(bytes); }
+function mimeWord(s){ return /^[\x20-\x7e]*$/.test(s) ? s : `=?UTF-8?B?${b64(s)}?=`; }
+function header(msg, name){ const h = (msg.payload?.headers || []).find(h => h.name.toLowerCase() === name.toLowerCase()); return h ? h.value : ''; }
+function walk(part, out){
+  if (!part) return out;
+  const mime = part.mimeType || '';
+  if (part.filename && part.body?.attachmentId) out.att.push({ name: part.filename, id: part.body.attachmentId, size: part.body.size, mime });
+  else if (mime === 'text/html' && part.body?.data) out.html = (out.html || '') + unb64url(part.body.data);
+  else if (mime === 'text/plain' && part.body?.data) out.text = (out.text || '') + unb64url(part.body.data);
+  (part.parts || []).forEach(p => walk(p, out));
+  return out;
+}
+function normThread(t, full){
+  const msgs = (t.messages || []).map(m => {
+    const n = { id: m.id, from: header(m, 'From'), to: header(m, 'To'), cc: header(m, 'Cc'), subject: header(m, 'Subject'), date: +m.internalDate,
+      snippet: decodeEntities(m.snippet || ''), labels: m.labelIds || [], msgId: header(m, 'Message-ID') || header(m, 'Message-Id'), refs: header(m, 'References') };
+    if (full){ const b = walk(m.payload, { att: [] }); n.html = b.html; n.text = b.text; n.att = b.att; }
+    return n;
+  });
+  const last = msgs[msgs.length - 1] || {};
+  const labels = [...new Set(msgs.flatMap(m => m.labels))];
+  return { id: t.id, messages: msgs, subject: msgs[0]?.subject || '(no subject)', from: last.from, snippet: last.snippet, date: last.date,
+    unread: msgs.some(m => m.labels.includes('UNREAD')), starred: labels.includes('STARRED'), labels, count: msgs.length };
+}
+
+// Demo backend: sample threads in memory so the whole UI can be tried without a Google account.
+const Demo = (() => {
+  const now = Date.now(), H = 3600e3, D = 24 * H;
+  const mk = (id, from, subject, body, ago, labels, more = []) => ({ id, messages: [{ id: id + 'a', from, to: 'you@bitmail.demo', subject, date: now - ago, snippet: body.slice(0, 120), text: body, labels, att: [] }, ...more.map((m, i) => ({ id: id + i, to: 'you@bitmail.demo', subject: 'Re: ' + subject, snippet: m.body.slice(0, 120), text: m.body, labels: m.labels || [], att: [], ...m }))] });
+  let data = [
+    mk('t1', 'Mom <mom@family.demo>', 'Sunday dinner 🍝', 'Hi sweetie,\n\nAre you coming Sunday? I am making the lasagna. Bring the 128bitcalculator so we can double the recipe for your uncle.\n\nLove, Mom', 2 * H, ['INBOX', 'UNREAD', 'CATEGORY_PERSONAL', 'IMPORTANT']),
+    mk('t2', 'Carlos <carlos@128bit.demo>', 'bitwallet build plan', 'Hey,\n\nPushed the first bitwallet build. Monthly spending dropdowns are in. Can you check the category colours?\n\nC.', 5 * H, ['INBOX', 'CATEGORY_PERSONAL', 'STARRED'], [{ from: 'You <you@bitmail.demo>', date: now - 4 * H, body: 'Looks great! Groceries should be green.', labels: ['SENT'] }, { from: 'Carlos <carlos@128bit.demo>', date: now - 3 * H, body: 'Done. Green it is 🟩', labels: ['INBOX', 'UNREAD'] }]),
+    mk('t3', 'Railway Time <alarms@railwaytime.demo>', 'Your weekly sleep report', 'You hit your bedtime 5 of 7 nights this week. Streak: 3 days. Keep it chunky.', 1 * D, ['INBOX', 'CATEGORY_UPDATES']),
+    mk('t4', 'PixelMart <deals@pixelmart.demo>', '50% off all 8-bit hoodies', 'This weekend only: half off every hoodie in the shop. Use code CHUNKY.', 1.5 * D, ['INBOX', 'UNREAD', 'CATEGORY_PROMOTIONS']),
+    mk('t5', 'Bitbook <noreply@bitbook.demo>', 'Daniel tagged you in a photo', 'Daniel tagged you in "Family game night". See the photo and leave a comment.', 2 * D, ['INBOX', 'CATEGORY_SOCIAL']),
+    mk('t6', 'Electric Co <billing@power.demo>', 'Your October bill is ready', 'Amount due: $84.12\nDue date: Nov 12\n\nPay with bitwallet in one tap.', 3 * D, ['INBOX', 'CATEGORY_UPDATES', 'IMPORTANT']),
+    mk('t7', 'Rocky <rocky@128bit.demo>', 'Inbox Zero challenge', 'Bet you cannot hit Inbox Zero before Friday. Loser buys pizza. 🍕', 4 * D, ['INBOX', 'CATEGORY_PERSONAL']),
+    mk('t8', 'You <you@bitmail.demo>', 'Recipe for the bake sale', 'Here is the cookie recipe, scaled for 48 with the calculator app.', 5 * D, ['SENT']),
+    mk('t9', 'Totally Real Prince <prince@spam.demo>', 'URGENT: claim your $1,000,000', 'Dear friend, please send your bank details.', 6 * D, ['SPAM'])
+  ].map(t => normDemo(t));
+  function normDemo(t){ const labels = [...new Set(t.messages.flatMap(m => m.labels))], last = t.messages[t.messages.length - 1]; return { ...t, subject: t.messages[0].subject, from: last.from, snippet: last.snippet, date: last.date, labels, unread: t.messages.some(m => m.labels.includes('UNREAD')), starred: labels.includes('STARRED'), count: t.messages.length }; }
+  const has = (t, l) => t.messages.some(m => m.labels.includes(l));
+  const wait = v => new Promise(r => setTimeout(() => r(v), 120));
+  return {
+    profile: () => wait({ emailAddress: 'you@bitmail.demo' }),
+    labels: () => wait({ user: [{ id: 'L_family', name: 'Family' }, { id: 'L_128', name: '128bit' }], unread: { INBOX: data.filter(t => has(t, 'INBOX') && t.unread).length, SPAM: data.filter(t => has(t, 'SPAM')).length, DRAFT: 0 } }),
+    list({ label, q }){
+      let r = data.filter(t => !label || has(t, label));
+      if (!label && !q) r = r.filter(t => !has(t, 'SPAM') && !has(t, 'TRASH'));
+      if (label !== 'TRASH' && label !== 'SPAM') r = r.filter(t => !has(t, 'TRASH'));
+      if (q){
+        const cat = (q.match(/category:(\w+)/) || [])[1], term = q.replace(/category:\w+/, '').replace(/in:\w+/, '').trim().toLowerCase();
+        if (cat) r = r.filter(t => has(t, 'CATEGORY_' + (cat === 'primary' ? 'PERSONAL' : cat.toUpperCase())));
+        if (term) r = r.filter(t => (t.subject + t.from + t.messages.map(m => m.text).join(' ')).toLowerCase().includes(term));
+      }
+      return wait({ threads: r.sort((a, b) => b.date - a.date).map(t => ({ ...t })), next: null });
+    },
+    thread: id => wait({ ...data.find(t => t.id === id) }),
+    modify(id, add = [], remove = []){ data = data.map(t => t.id !== id ? t : normDemo({ ...t, messages: t.messages.map(m => ({ ...m, labels: [...new Set([...m.labels.filter(l => !remove.includes(l)), ...add])] })) })); return wait({}); },
+    trash(id){ return this.modify(id, ['TRASH'], ['INBOX']); },
+    untrash(id){ return this.modify(id, ['INBOX'], ['TRASH']); },
+    send({ to, subject, body, threadId }){
+      const msg = { id: 'm' + Date.now(), from: 'You <you@bitmail.demo>', to, subject, date: Date.now(), snippet: body.slice(0, 120), text: body, labels: ['SENT'], att: [] };
+      if (threadId) data = data.map(t => t.id === threadId ? normDemo({ ...t, messages: [...t.messages, msg] }) : t);
+      else data.push(normDemo({ id: 't' + Date.now(), messages: [msg] }));
+      return wait({});
+    },
+    signOut(){}
+  };
+})();
+
+/* ================= State ================= */
+let api = null, me = '', folder = 'INBOX', cat = 'primary', query = '', threads = [], nextPage = null, openId = null, userLabels = [];
+const FOLDERS = [['INBOX', '📥', 'Inbox'], ['STARRED', '⭐', 'Starred'], ['SNOOZED', '💤', 'Snoozed'], ['IMPORTANT', '🏷', 'Important'], ['SENT', '📤', 'Sent'], ['DRAFT', '📝', 'Drafts'], ['ALL', '🗂', 'All Mail'], ['SPAM', '⚠', 'Spam'], ['TRASH', '🗑', 'Trash']];
+
+function renderFolders(unread = {}){
+  $('folders').innerHTML = FOLDERS.map(([id, ic, name]) => `<a href="#" data-f="${id}" class="${folder === id && !query ? 'on' : ''}"><span>${ic} ${name}</span>${unread[id] ? `<b>${unread[id]}</b>` : ''}</a>`).join('');
+  $('labels').innerHTML = userLabels.length ? userLabels.map(l => `<a href="#" data-f="${esc(l.id)}" class="${folder === l.id ? 'on' : ''}"><span>🏷 ${esc(l.name)}</span></a>`).join('') : '<p style="font-size:12px;color:var(--muted);padding:0 10px">No labels yet.</p>';
+  document.querySelectorAll('.side a').forEach(a => a.onclick = e => { e.preventDefault(); folder = a.dataset.f; query = ''; $('q').value = ''; closeSide(); refreshCounts(); load(); });
+}
+async function refreshCounts(){ try { const r = await api.labels(); userLabels = r.user; renderFolders(r.unread); renderQuest(r.unread.INBOX || 0); } catch (e){ renderFolders(); } }
+function renderQuest(unreadInbox){
+  const startKey = 'zeroStart.' + new Date().toDateString();
+  let start = store.get(startKey, null); if (start === null || unreadInbox > start){ start = unreadInbox; store.set(startKey, start); }
+  const done = start ? Math.round((start - unreadInbox) / start * 100) : 100;
+  $('quest').innerHTML = `<b>QUEST: INBOX ZERO</b>${unreadInbox ? `${unreadInbox} unread left. Read or archive them all for +50 XP.` : 'Inbox Zero reached! +50 XP 🎉'}<div class="bar"><i style="width:${done}%"></i></div>`;
+  if (!unreadInbox && start && !store.get('zeroDone.' + new Date().toDateString())){ store.set('zeroDone.' + new Date().toDateString(), true); toast('INBOX ZERO! +50 XP'); }
+}
+function currentQuery(){
+  if (query) return { q: query };
+  if (folder === 'INBOX') return { label: 'INBOX', q: `category:${cat}` };
+  if (folder === 'ALL') return { q: '' };
+  if (folder === 'SNOOZED') return { q: 'in:snoozed' };
+  return { label: folder };
+}
+async function load(more){
+  document.querySelectorAll('.cats').forEach(c => c.style.display = folder === 'INBOX' && !query ? '' : 'none');
+  if (!more){ threads = []; nextPage = null; $('rows').innerHTML = '<div class="loading">LOADING</div>'; }
+  try {
+    const r = await api.list({ ...currentQuery(), pageToken: more ? nextPage : null });
+    threads = more ? threads.concat(r.threads) : r.threads; nextPage = r.next;
+    renderRows();
+  } catch (e){ $('rows').innerHTML = `<div class="empty"><span class="big" style="color:var(--red)">ERROR</span>${esc(e.message)}</div>`; }
+}
+function renderRows(){
+  if (!threads.length){
+    const zero = folder === 'INBOX' && !query;
+    $('rows').innerHTML = `<div class="empty"><span class="big">${zero ? 'INBOX ZERO!' : 'NOTHING HERE'}</span>${zero ? 'Every message handled. Go touch grass. 🌱' : query ? 'No mail matched your search.' : 'This folder is empty.'}</div>`;
+    return;
+  }
+  $('rows').innerHTML = threads.map(t => `
+    <div class="row ${t.unread ? 'unread' : ''} ${t.id === openId ? 'sel' : ''}" data-id="${t.id}">
+      <div class="av" style="background:${colorFor(addrOf(t.from))}">${esc(initial(t.from))}</div>
+      <div class="from">${esc(nameOf(t.from))}${t.count > 1 ? `<span class="cnt">${t.count}</span>` : ''}</div>
+      <div class="date">${when(t.date)}</div>
+      <div class="subj">${esc(t.subject || '(no subject)')}</div>
+      <div class="snip">${esc(t.snippet)}</div>
+      <button class="st ${t.starred ? 'on' : ''}" data-star="${t.id}" aria-label="Star">${t.starred ? '★' : '☆'}</button>
+    </div>`).join('') + (nextPage ? '<div class="more"><button class="pxbtn" id="moreBtn">LOAD MORE</button></div>' : '');
+  $('rows').querySelectorAll('.row').forEach(r => r.onclick = e => { if (e.target.closest('[data-star]')) return; openThread(r.dataset.id); });
+  $('rows').querySelectorAll('[data-star]').forEach(b => b.onclick = () => toggleStar(b.dataset.star));
+  const mb = $('moreBtn'); if (mb) mb.onclick = () => { mb.disabled = true; load(true); };
+}
+function patchThread(id, fn){ threads = threads.map(t => t.id === id ? fn({ ...t }) : t); renderRows(); }
+
+/* ================= Reader ================= */
+async function openThread(id){
+  openId = id; $('shell').classList.add('reading'); renderRows();
+  $('reader').innerHTML = '<div class="loading">OPENING</div>';
+  let t;
+  try { t = await api.thread(id); } catch (e){ $('reader').innerHTML = `<div class="empty"><span class="big" style="color:var(--red)">ERROR</span>${esc(e.message)}</div>`; return; }
+  if (openId !== id) return;
+  if (t.unread){ api.modify(id, [], ['UNREAD']).then(refreshCounts).catch(() => {}); patchThread(id, x => ({ ...x, unread: false })); }
+  const sys = { INBOX: 'Inbox', STARRED: 'Starred', IMPORTANT: 'Important', SENT: 'Sent', SPAM: 'Spam', TRASH: 'Trash' };
+  const labelNames = t.labels.map(l => sys[l] || (userLabels.find(u => u.id === l) || {}).name).filter(Boolean);
+  const inInbox = t.labels.includes('INBOX'), inTrash = t.labels.includes('TRASH');
+  $('reader').innerHTML = `
+    <div class="rbar">
+      <button class="pxbtn back" id="rBack">◀ BACK</button>
+      ${inInbox ? '<button class="pxbtn" id="rArchive">📦 ARCHIVE</button>' : !inTrash ? '<button class="pxbtn" id="rInbox">📥 TO INBOX</button>' : ''}
+      ${inTrash ? '<button class="pxbtn" id="rUntrash">♻ RESTORE</button>' : '<button class="pxbtn red" id="rTrash">🗑 DELETE</button>'}
+      <button class="pxbtn" id="rUnread">✉ UNREAD</button>
+      <button class="pxbtn" id="rStar">${t.starred ? '★ STARRED' : '☆ STAR'}</button>
+    </div>
+    <div class="rsubj">${esc(t.subject || '(no subject)')}</div>
+    <div class="rlabels">${labelNames.map(n => `<span>${esc(n)}</span>`).join('')}</div>
+    ${t.messages.map((m, i) => `
+      <div class="msg ${i < t.messages.length - 1 && t.messages.length > 2 ? 'collapsed' : ''}" data-m="${i}">
+        <div class="mhead">
+          <div class="av" style="background:${colorFor(addrOf(m.from))}">${esc(initial(m.from))}</div>
+          <div class="who"><b>${esc(nameOf(m.from))}</b><span>${esc(addrOf(m.from))} → ${esc(m.to)}${m.cc ? ', cc ' + esc(m.cc) : ''}</span></div>
+          <div class="when">${when(m.date, true)}</div>
+        </div>
+        <div class="snipc">${esc(m.snippet)}</div>
+        <div class="mbody" data-body="${i}"></div>
+        ${m.att?.length ? `<div class="att">${m.att.map(a => `<a href="#" data-att="${esc(a.id)}" data-msg="${m.id}" data-name="${esc(a.name)}" data-mime="${esc(a.mime)}">📎 ${esc(a.name)} (${Math.ceil(a.size / 1024)} KB)</a>`).join('')}</div>` : ''}
+      </div>`).join('')}
+    <div class="replybox"><button class="pxbtn blue" id="rReply">↩ REPLY</button><button class="pxbtn" id="rReplyAll">↩↩ REPLY ALL</button><button class="pxbtn" id="rFwd">↪ FORWARD</button></div>`;
+  t.messages.forEach((m, i) => renderBody($('reader').querySelector(`[data-body="${i}"]`), m));
+  $('reader').querySelectorAll('.mhead').forEach(h => h.onclick = () => h.parentNode.classList.toggle('collapsed'));
+  $('reader').querySelectorAll('[data-att]').forEach(a => a.onclick = e => { e.preventDefault(); download(a.dataset); });
+  $('rBack').onclick = closeReader;
+  const act = (btn, fn) => { const b = $(btn); if (b) b.onclick = fn; };
+  act('rArchive', () => archive(t.id));
+  act('rInbox', async () => { await api.modify(t.id, ['INBOX'], []); toast('MOVED TO INBOX'); openThread(t.id); load(); });
+  act('rTrash', () => trash(t.id));
+  act('rUntrash', async () => { await api.untrash(t.id); toast('RESTORED'); closeReader(); load(); });
+  act('rUnread', async () => { await api.modify(t.id, ['UNREAD'], []); patchThread(t.id, x => ({ ...x, unread: true })); refreshCounts(); closeReader(); });
+  act('rStar', async () => { await toggleStar(t.id, t.starred); openThread(t.id); });
+  const last = t.messages[t.messages.length - 1];
+  const quote = m => `\n\nOn ${when(m.date, true)}, ${nameOf(m.from)} wrote:\n` + (m.text || stripHtml(m.html || '')).split('\n').map(l => '> ' + l).join('\n');
+  const reSubj = /^re:/i.test(t.subject) ? t.subject : 'Re: ' + t.subject;
+  const replyTo = m => m.from.includes(me) ? m.to : m.from;
+  act('rReply', () => openCompose({ to: replyTo(last), subject: reSubj, body: quote(last), threadId: t.id, inReplyTo: last.msgId, references: [last.refs, last.msgId].filter(Boolean).join(' ') }, 'REPLY'));
+  act('rReplyAll', () => openCompose({ to: replyTo(last), cc: [last.to, last.cc].filter(Boolean).join(', ').split(',').map(s => s.trim()).filter(s => s && !s.includes(me) && !replyTo(last).includes(addrOf(s))).join(', '), subject: reSubj, body: quote(last), threadId: t.id, inReplyTo: last.msgId, references: [last.refs, last.msgId].filter(Boolean).join(' ') }, 'REPLY ALL'));
+  act('rFwd', () => openCompose({ to: '', subject: /^fwd:/i.test(t.subject) ? t.subject : 'Fwd: ' + t.subject, body: `\n\n---------- Forwarded message ----------\nFrom: ${last.from}\nDate: ${when(last.date, true)}\nSubject: ${t.subject}\nTo: ${last.to}\n\n${last.text || stripHtml(last.html || '')}` }, 'FORWARD'));
+}
+function stripHtml(h){ const d = new DOMParser().parseFromString(h, 'text/html'); d.querySelectorAll('style,script').forEach(n => n.remove()); return (d.body?.innerText || d.body?.textContent || '').trim(); }
+function renderBody(el, m){
+  if (m.html){
+    // Sandboxed with no scripts; links open in a new tab.
+    const f = document.createElement('iframe');
+    f.setAttribute('sandbox', 'allow-popups allow-popups-to-escape-sandbox allow-same-origin');
+    f.setAttribute('referrerpolicy', 'no-referrer');
+    f.srcdoc = `<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><meta http-equiv="Content-Security-Policy" content="script-src 'none'"><style>body{margin:14px;font-family:Arial,sans-serif;font-size:14px;color:#111;word-wrap:break-word}img{max-width:100%;height:auto}table{max-width:100%}</style></head><body>${m.html}</body></html>`;
+    f.onload = () => { const fit = () => { try { f.style.height = (f.contentDocument.documentElement.scrollHeight + 4) + 'px'; } catch {} }; fit(); setTimeout(fit, 400); setTimeout(fit, 1500); };
+    el.appendChild(f);
+  } else {
+    const pre = document.createElement('pre');
+    pre.innerHTML = esc(m.text || m.snippet || '').replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+    el.appendChild(pre);
+  }
+}
+async function download({ att, msg, name, mime }){
+  if (api !== Gmail) return toast('DEMO: NO REAL FILES');
+  try {
+    const r = await Gmail.req(`messages/${msg}/attachments/${att}`);
+    const bin = atob(r.data.replace(/-/g, '+').replace(/_/g, '/'));
+    const url = URL.createObjectURL(new Blob([Uint8Array.from(bin, c => c.charCodeAt(0))], { type: mime || 'application/octet-stream' }));
+    const a = document.createElement('a'); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+  } catch (e){ toast('DOWNLOAD FAILED'); }
+}
+function closeReader(){ openId = null; $('shell').classList.remove('reading'); $('reader').innerHTML = '<div class="placeholder"><div><span class="px">NO MESSAGE SELECTED</span>Pick a thread from the list to read it here.</div></div>'; renderRows(); }
+async function archive(id){
+  await api.modify(id, [], ['INBOX']);
+  threads = threads.filter(t => t.id !== id); closeReader(); refreshCounts();
+  toast('ARCHIVED +5 XP', async () => { await api.modify(id, ['INBOX'], []); load(); refreshCounts(); });
+}
+async function trash(id){
+  await api.trash(id);
+  threads = threads.filter(t => t.id !== id); closeReader(); refreshCounts();
+  toast('MOVED TO TRASH', async () => { await api.untrash(id); load(); refreshCounts(); });
+}
+async function toggleStar(id, cur){
+  const t = threads.find(x => x.id === id), on = cur ?? t?.starred;
+  try { await (on ? api.modify(id, [], ['STARRED']) : api.modify(id, ['STARRED'], [])); patchThread(id, x => ({ ...x, starred: !on })); }
+  catch (e){ toast('COULD NOT STAR'); }
+}
+
+/* ================= Compose ================= */
+let draft = {};
+function openCompose(d = {}, title = 'NEW MESSAGE'){
+  draft = d; $('sheetTitle').textContent = title;
+  $('cTo').value = d.to || ''; $('cCc').value = d.cc || ''; $('cSubj').value = d.subject || ''; $('cBody').value = d.body || '';
+  $('sheet').classList.add('open'); (d.to ? $('cBody') : $('cTo')).focus();
+  if (d.body) $('cBody').setSelectionRange(0, 0);
+}
+function closeCompose(){ $('sheet').classList.remove('open'); draft = {}; }
+$('composeBtn').onclick = () => { closeSide(); openCompose(); };
+$('fab').onclick = () => openCompose();
+$('sheetClose').onclick = closeCompose;
+$('discardBtn').onclick = () => { closeCompose(); toast('DRAFT DISCARDED'); };
+$('sendBtn').onclick = async () => {
+  const to = $('cTo').value.trim();
+  if (!/\S+@\S+/.test(to)) return toast('ADD A RECIPIENT');
+  $('sendBtn').disabled = true;
+  try {
+    const threadId = draft.threadId;
+    await api.send({ ...draft, to, cc: $('cCc').value.trim(), subject: $('cSubj').value, body: $('cBody').value });
+    closeCompose(); toast('SENT! +10 XP');
+    if (openId && threadId === openId) openThread(openId);
+  } catch (e){ toast('SEND FAILED: ' + e.message.slice(0, 40)); }
+  $('sendBtn').disabled = false;
+};
+
+/* ================= Chrome ================= */
+$('cats').querySelectorAll('button').forEach(b => b.onclick = () => { cat = b.dataset.c; $('cats').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); load(); });
+$('searchForm').onsubmit = e => { e.preventDefault(); query = $('q').value.trim(); renderFolders(); closeReader(); load(); };
+function closeSide(){ $('side').classList.remove('open'); $('scrim').classList.remove('open'); }
+$('burger').onclick = () => { $('side').classList.add('open'); $('scrim').classList.add('open'); };
+$('scrim').onclick = closeSide;
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input,textarea') || e.metaKey || e.ctrlKey || !api) return;
+  if (e.key === 'c'){ e.preventDefault(); openCompose(); }
+  else if (e.key === '/'){ e.preventDefault(); $('q').focus(); }
+  else if (e.key === 'Escape'){ if ($('sheet').classList.contains('open')) closeCompose(); else closeReader(); }
+  else if (openId && e.key === 'e') archive(openId);
+  else if (openId && e.key === '#') trash(openId);
+  else if (openId && e.key === 's') toggleStar(openId).then(() => openThread(openId));
+  else if (e.key === 'j' || e.key === 'k'){ const i = threads.findIndex(t => t.id === openId), n = threads[i + (e.key === 'j' ? 1 : -1)] || threads[0]; if (n) openThread(n.id); }
+});
+function renderMe(){
+  $('me').innerHTML = `<span class="name">${esc(me)}${api === Demo ? ' (demo)' : ''}</span><div class="av">${esc((me[0] || '?').toUpperCase())}</div><button class="pxbtn" id="outBtn">${api === Demo ? 'CONNECT GMAIL' : 'SIGN OUT'}</button>`;
+  $('acctBtn').textContent = $('outBtn').textContent;
+  $('outBtn').onclick = $('acctBtn').onclick = () => { closeSide(); if (api === Gmail) Gmail.signOut(); store.set('mode', null); api = null; showSetup(); };
+}
+async function start(backend){
+  api = backend; $('setup').classList.remove('open');
+  try { me = (await api.profile()).emailAddress; } catch (e){ toast('SIGN-IN FAILED'); api = null; return showSetup(); }
+  store.set('mode', backend === Demo ? 'demo' : 'gmail');
+  renderMe(); refreshCounts(); load();
+}
+function showSetup(){ $('originHint').textContent = location.origin; $('clientId').value = store.get('clientId', DEFAULT_CLIENT_ID); $('setup').classList.add('open'); }
+$('tryDemo').onclick = () => start(Demo);
+$('saveClient').onclick = async () => {
+  const id = $('clientId').value.trim();
+  if (!/\.apps\.googleusercontent\.com$/.test(id)) return toast('THAT DOES NOT LOOK LIKE A CLIENT ID');
+  if (id !== store.get('clientId')) Gmail.tokenClient = null;
+  store.set('clientId', id);
+  try { await Gmail.signIn('consent'); start(Gmail); } catch (e){ toast('SIGN-IN: ' + e.message.slice(0, 40)); }
+};
+(function boot(){
+  const mode = store.get('mode');
+  if (mode === 'demo') return start(Demo);
+  if (mode === 'gmail' && Gmail.restore()) return start(Gmail);
+  if (mode === 'gmail' && store.get('clientId', DEFAULT_CLIENT_ID)){
+    // Token expired between visits: wait for Google's script, then try a silent refresh on first click.
+    showSetup(); $('saveClient').textContent = 'SIGN IN AGAIN'; return;
+  }
+  showSetup();
+})();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
