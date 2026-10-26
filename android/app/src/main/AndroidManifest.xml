@@ -13,6 +13,17 @@
         <!-- Links this app to the website for full-screen mode (see README: Android app). -->
         <meta-data android:name="asset_statements" android:resource="@string/asset_statements" />
 
+        <!-- Visible start screen: always shows something, then hands off to Chrome. -->
+        <activity
+            android:name=".StartActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Material.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
             android:exported="true"
@@ -23,10 +34,6 @@
             <!-- Without Chrome or another TWA browser, fall back to a Custom Tab (sign-in still works there). -->
             <meta-data android:name="android.support.customtabs.trusted.FALLBACK_STRATEGY" android:value="customtabs" />
 
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
